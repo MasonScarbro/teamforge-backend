@@ -144,10 +144,10 @@ def validate_user():
         conn.close();
     
         if user:
-            session['user'] = {"username": user[0], "email": user[1]}
+            session["user"] = {"username": user[0], "email": user[1]}
             session.modified = True  # Ensure session is marked as changed
-            print("Session Data:", session)
-            return jsonify({"message": "User validated", "user": {"username": user[0], "email": user[1]}}), 200
+            logging.info(f"User validated: {session['user']}")
+            return jsonify({"message": "User validated", "user": session["user"]}), 200
         else:
             return jsonify({"error": "Invalid username or password"}), 401
         
