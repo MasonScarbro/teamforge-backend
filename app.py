@@ -157,13 +157,17 @@ def update_user_data():
     try:
         logging.info("Received request to /update_user_data")
 
+        if 'user' not in session or 'username' not in session['user']:
+            logging.error("User is not logged in.")
+            return jsonify({"error": "User must be logged in."}), 401
+
+        username = session['user']['username']  # Get username from session
         data = request.get_json()
         if not data:
             logging.error("No JSON received!")
             return jsonify({"error": "Invalid JSON"}), 400
 
-        # Extract user data from request
-        username = data.get("username")
+        # Extract other data from request
         phone = data.get("phone")
         github = data.get("github")
         discord = data.get("discord")
@@ -174,21 +178,17 @@ def update_user_data():
         leadership = data.get("leadership")
         enthusiasm = data.get("enthusiasm")
 
-        if not username:
-            logging.error("Username is missing!")
-            return jsonify({"error": "Username is required"}), 400
-
         conn = get_db_connection()
         cursor = conn.cursor()
 
-        # Update `users` table (assuming username exists)
+        # Update users table
         cursor.execute("""
             UPDATE users 
             SET interestsandhobbies = %s, skills = %s, pastprojects = %s 
             WHERE username = %s
         """, (interests, skills, past_projects, username))
 
-        # Insert or update `personal_traits`
+        # Update or insert into personal_traits
         cursor.execute("""
             INSERT INTO personal_traits (username, creativity, leadership, enthusiasm) 
             VALUES (%s, %s, %s, %s)
@@ -198,7 +198,7 @@ def update_user_data():
                           enthusiasm = EXCLUDED.enthusiasm
         """, (username, creativity, leadership, enthusiasm))
 
-        # Insert or update `user_contacts`
+        # Update or insert into user_contacts
         cursor.execute("""
             INSERT INTO user_contacts (username, phone_number, github_link, discord_profile) 
             VALUES (%s, %s, %s, %s)
@@ -212,50 +212,12 @@ def update_user_data():
         cursor.close()
         conn.close()
 
-        # Fetch updated user data
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT u.username, u.email, u.interestsandhobbies, u.skills, u.pastprojects, 
-                   pt.creativity, pt.leadership, pt.enthusiasm,
-                   uc.phone_number, uc.github_link, uc.discord_profile
-            FROM users u
-            LEFT JOIN personal_traits pt ON u.username = pt.username
-            LEFT JOIN user_contacts uc ON u.username = uc.username
-            WHERE u.username = %s
-        """, (username,))
-        
-        user = cursor.fetchone()
-        cursor.close()
-        conn.close()
-
-        if user:
-            user_data = {
-                "username": user[0],
-                "email": user[1],
-                "interests": user[2],
-                "skills": user[3],
-                "pastProjects": user[4],
-                "creativity": user[5],
-                "leadership": user[6],
-                "enthusiasm": user[7],
-                "phone": user[8],
-                "github": user[9],
-                "discord": user[10],
-            }
-
-            # Store updated user data in session
-            session["user"] = user_data
-            session.modified = True
-
-            logging.info(f"Updated user data: {user_data}")
-            return jsonify({"message": "User data updated successfully", "user": user_data}), 200
-        else:
-            return jsonify({"error": "User not found"}), 404
+        return jsonify({"message": "User data updated successfully"}), 200
 
     except Exception as e:
-        logging.error(f"Error in /update_user_data: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error updating user data: {str(e)}")
+        return jsonify({"error": str(e)}), 400
+
 
 @app.route('/current_user', methods=['GET'])
 def current_user():
