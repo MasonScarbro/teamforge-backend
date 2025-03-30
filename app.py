@@ -8,8 +8,11 @@ import os
 app = Flask(__name__)
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-CORS(app)
+CORS(app, supports_credentials=True)
 Session(app) 
+app.config["SESSION_COOKIE_SECURE"] = True  # Ensures cookies are only sent over HTTPS
+app.config["SESSION_COOKIE_HTTPONLY"] = True  # Prevents client-side JS from accessing cookies
+app.config["SESSION_COOKIE_SAMESITE"] = "None"  # Required for cross-site requests
 
 
 ADMIN_LOGIN = os.getenv("ADMIN_LOGIN")
