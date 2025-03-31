@@ -248,6 +248,58 @@ def update_user_data():
         return jsonify({"error": str(e)}), 400
 
 
+@app.route('/get_user_data', methods=['POST'])
+def get_user_data():
+    try:
+        logging.info("Received request to /get_user_data")
+        
+        data = request.get_json()
+        if not data or 'username' not in data:
+            logging.error("Username not provided!")
+            return jsonify({"error": "Username is required"}), 400
+
+        username = data['username']
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Fetch user data from multiple tables
+        cursor.execute("""
+            SELECT u.username, u.email, u.interestsandhobbies, u.skills, u.pastprojects, 
+                   p.creativity, p.leadership, p.enthusiasm, 
+                   c.phone_number, c.github_link, c.discord_profile
+            FROM users u
+            LEFT JOIN personal_traits p ON u.username = p.username
+            LEFT JOIN user_contacts c ON u.username = c.username
+            WHERE u.username = %s
+        """, (username,))
+
+        user_data = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if user_data:
+            return jsonify({
+                "username": user_data[0],
+                "email": user_data[1],
+                "interests": user_data[2],
+                "skills": user_data[3],
+                "pastProjects": user_data[4],
+                "creativity": user_data[5],
+                "leadership": user_data[6],
+                "enthusiasm": user_data[7],
+                "phone": user_data[8],
+                "github": user_data[9],
+                "discord": user_data[10]
+            }), 200
+        else:
+            logging.warning(f"No user found with username: {username}")
+            return jsonify({"error": "User not found"}), 404
+
+    except Exception as e:
+        logging.error(f"Error fetching user data: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/current_user', methods=['GET'])
 def current_user():
     user = session.get("user")
