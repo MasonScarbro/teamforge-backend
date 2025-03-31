@@ -189,7 +189,12 @@ def update_user_data():
             UPDATE users 
             SET interestsandhobbies = %s, skills = %s, pastprojects = %s 
             WHERE username = %s
+            RETURNING email;
         """, (interests, skills, past_projects, username))
+        
+        # Get email for session update
+        email_result = cursor.fetchone()
+        user_email = email_result[0] if email_result else session['user'].get('email')
 
         # Update or insert into personal_traits
         cursor.execute("""
@@ -211,11 +216,43 @@ def update_user_data():
                           discord_profile = EXCLUDED.discord_profile
         """, (username, phone, github, discord))
 
+        # Get updated user data for session
+        cursor.execute("""
+            SELECT 
+                u.username, u.email, u.interestsandhobbies, u.skills, u.pastprojects,
+                uc.phone_number, uc.github_link, uc.discord_profile,
+                pt.creativity, pt.leadership, pt.enthusiasm
+            FROM users u
+            LEFT JOIN user_contacts uc ON u.username = uc.username
+            LEFT JOIN personal_traits pt ON u.username = pt.username
+            WHERE u.username = %s
+        """, (username,))
+        
+        user_data = cursor.fetchone()
+        
         conn.commit()
         cursor.close()
         conn.close()
-
-        return jsonify({"message": "User data updated successfully"}), 200
+        
+        if user_data:
+            # Update session with all user data
+            session['user'] = {
+                'username': user_data[0],
+                'email': user_data[1],
+                'interestsandhobbies': user_data[2],
+                'skills': user_data[3],
+                'pastprojects': user_data[4],
+                'phone_number': user_data[5],
+                'github_link': user_data[6],
+                'discord_profile': user_data[7],
+                'creativity': user_data[8],
+                'leadership': user_data[9],
+                'enthusiasm': user_data[10]
+            }
+            session.modified = True
+            logging.info(f"Updated user session: {session['user']}")
+        
+        return jsonify({"message": "User data updated successfully", "user": session['user']}), 200
 
     except Exception as e:
         logging.error(f"Error updating user data: {str(e)}")
