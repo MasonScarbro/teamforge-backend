@@ -210,10 +210,36 @@ def update_user_data():
                           github_link = EXCLUDED.github_link, 
                           discord_profile = EXCLUDED.discord_profile
         """, (username, phone, github, discord))
-
         conn.commit()
-        cursor.close()
-        conn.close()
+        # Fetch updated user data
+        cursor.execute("""
+            SELECT u.username, u.email, u.interestsandhobbies, u.skills, u.pastprojects, 
+                   p.creativity, p.leadership, p.enthusiasm, 
+                   c.phone_number, c.github_link, c.discord_profile
+            FROM users u
+            LEFT JOIN personal_traits p ON u.username = p.username
+            LEFT JOIN user_contacts c ON u.username = c.username
+            WHERE u.username = %s
+        """, (username,))
+
+        updated_user = cursor.fetchone()
+        if updated_user:
+            session['user'] = {
+                "username": updated_user[0],
+                "email": updated_user[1],
+                "interests": updated_user[2],
+                "skills": updated_user[3],
+                "pastProjects": updated_user[4],
+                "creativity": updated_user[5],
+                "leadership": updated_user[6],
+                "enthusiasm": updated_user[7],
+                "phone": updated_user[8],
+                "github": updated_user[9],
+                "discord": updated_user[10]
+            }
+        
+            cursor.close()
+            conn.close()
 
         return jsonify({"message": "User data updated successfully"}), 200
 
