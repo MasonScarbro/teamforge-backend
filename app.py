@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 from flask_session import Session
 import psycopg2
@@ -52,6 +52,39 @@ def get_db_connection():
         except Exception as e:
             logging.error(f"Database connection failed: {str(e)}")
             return None
+
+## IMAGE UPLOADING STUFF
+
+# IMAGE UPLOAD CONFIG:
+UPLOAD_FOLDER = '/profilePictures'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# checks if valid filetype
+# TODO: set a max size so people don't try to upload a
+# 16000x16000 75.4TB png file named "THE SINNER" which is just a picture of a cat
+def allowed_files(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'profilePicture' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+
+    file = request.files['profilePicture']
+
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+
+    if file and allowed_files(file.filename):
+        filename = file.filename
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return jsonify({"message": "File uploaded successfully", "filename": filename}), 200
+
+    return jsonify({"error": "File type not allowed"}), 400
+
+## END OF IMAGE UPLOADING STUFF
 
 #the route/url that is sends the post
 @app.route('/add_user', methods=['POST'])
