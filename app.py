@@ -342,3 +342,79 @@ def current_user():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+@app.route('/get_compatible_users', methods=['POST'])
+def get_compatible_users():
+    try:
+        logging.info("Received request to /get_compatible_users")
+        data = request.get_json()
+        if not data or 'username' not in data:
+            return jsonify({"error": "Username is required"}), 400
+
+        target_username = data['username']
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Get the target user's traits
+        cursor.execute("""
+            SELECT u.username, u.interestsandhobbies, u.skills, u.pastprojects,
+                   p.creativity, p.leadership, p.enthusiasm
+            FROM users u
+            LEFT JOIN personal_traits p ON u.username = p.username
+            WHERE u.username = %s
+        """, (target_username,))
+        target_user = cursor.fetchone()
+
+        if not target_user:
+            return jsonify({"error": "Target user not found"}), 404
+
+        def parse_keywords(text):
+            return set(map(str.strip, text.lower().split(','))) if text else set()
+
+        target_interests = parse_keywords(target_user[1])
+        target_skills = parse_keywords(target_user[2])
+        target_projects = parse_keywords(target_user[3])
+        target_traits = target_user[4:7]  # (creativity, leadership, enthusiasm)
+
+        # Fetch all other users and their traits
+        cursor.execute("""
+            SELECT u.username, u.interestsandhobbies, u.skills, u.pastprojects,
+                   p.creativity, p.leadership, p.enthusiasm
+            FROM users u
+            LEFT JOIN personal_traits p ON u.username = p.username
+            WHERE u.username != %s
+        """, (target_username,))
+        other_users = cursor.fetchall()
+
+        def calculate_similarity(other):
+            username, interests, skills, projects, creativity, leadership, enthusiasm = other
+
+            interests_sim = len(target_interests & parse_keywords(interests))
+            skills_sim = len(target_skills & parse_keywords(skills))
+            projects_sim = len(target_projects & parse_keywords(projects))
+
+            trait_sim = 0
+            if None not in (creativity, leadership, enthusiasm):
+                trait_sim = 10 - abs(target_traits[0] - creativity) \
+                            + 10 - abs(target_traits[1] - leadership) \
+                            + 10 - abs(target_traits[2] - enthusiasm)
+
+            # Weighted score: can be adjusted
+            score = (2 * interests_sim) + (3 * skills_sim) + (1.5 * projects_sim) + (0.5 * trait_sim)
+            return (username, score)
+
+        similarities = [calculate_similarity(user) for user in other_users]
+        similarities.sort(key=lambda x: x[1], reverse=True)
+
+        top_matches = similarities[:6]
+        result = [{"username": username, "compatibilityScore": score} for username, score in top_matches]
+
+        cursor.close()
+        conn.close()
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        logging.error(f"Error in /get_compatible_users: {str(e)}")
+        return jsonify({"error": str(e)}), 500
