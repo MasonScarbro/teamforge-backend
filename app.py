@@ -418,3 +418,41 @@ def get_compatible_users():
     except Exception as e:
         logging.error(f"Error in /get_compatible_users: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+    
+@app.route('/search_users', methods=['POST'])
+def search_users():
+    try:
+        logging.info("Received request to /search_users")
+        data = request.get_json()
+        if not data or 'query' not in data:
+            return jsonify({"error": "Query is required"}), 400
+
+        query = data['query'].lower()
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Search users whose username, interests, skills, or projects match the query
+        cursor.execute("""
+            SELECT u.username, u.interestsandhobbies, u.skills, u.pastprojects
+            FROM users u
+            WHERE LOWER(u.username) LIKE %s
+               OR LOWER(u.interestsandhobbies) LIKE %s
+               OR LOWER(u.skills) LIKE %s
+               OR LOWER(u.pastprojects) LIKE %s
+            LIMIT 10
+        """, (f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%'))
+
+        results = cursor.fetchall()
+
+        users = [{"username": r[0]} for r in results]
+
+        cursor.close()
+        conn.close()
+
+        return jsonify(users), 200
+
+    except Exception as e:
+        logging.error(f"Error in /search_users: {str(e)}")
+        return jsonify({"error": str(e)}), 500
