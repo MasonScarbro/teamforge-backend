@@ -455,13 +455,9 @@ def search_users():
         return jsonify({"error": str(e)}), 500
     
 @app.route('/logout_user', methods=['GET'])
-def current_user():
-    if 'user' in session:
-        user = session['user']
-        session.pop('user', None)
-    if user:
-        return jsonify({"user": user})
-    return jsonify({"error": "No user logged in"}), 401
+def logout_user():
+    session.clear()  # Clear the session for logout
+    return jsonify({"message": "User logged out successfully"}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
