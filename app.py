@@ -340,9 +340,6 @@ def current_user():
         return jsonify({"user": user})
     return jsonify({"error": "No user logged in"}), 401
 
-if __name__ == '__main__':
-    app.run(debug=True)
-
 @app.route('/get_compatible_users', methods=['POST'])
 def get_compatible_users():
     try:
@@ -465,3 +462,7 @@ def current_user():
     if user:
         return jsonify({"user": user})
     return jsonify({"error": "No user logged in"}), 401
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
