@@ -456,3 +456,12 @@ def search_users():
     except Exception as e:
         logging.error(f"Error in /search_users: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/logout_user', methods=['GET'])
+def current_user():
+    if 'user' in session:
+        user = session['user']
+        session.pop('user', None)
+    if user:
+        return jsonify({"user": user})
+    return jsonify({"error": "No user logged in"}), 401
