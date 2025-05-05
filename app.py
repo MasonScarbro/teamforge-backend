@@ -492,7 +492,7 @@ def send_connection_email():
 
         # Compose and send email
         sender_email = "teamforge.smtp@gmail.com"
-        sender_password = "APOLLO_EMAIL&"
+        sender_password = "nshr fqew gtiu lcmk"
 
         msg = EmailMessage()
         msg['Subject'] = "Teamforge Connection Request"
