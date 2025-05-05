@@ -4,6 +4,8 @@ from flask_session import Session
 import psycopg2
 import logging
 import os
+import smtplib
+from email.message import EmailMessage
 
 app = Flask(__name__)
 app.config["SESSION_TYPE"] = "filesystem"
@@ -458,6 +460,55 @@ def search_users():
 def logout_user():
     session.clear()  # Clear the session for logout
     return jsonify({"message": "User logged out successfully"}), 200
+
+
+@app.route('/send_connection_email', methods=['POST'])
+def send_connection_email():
+    try:
+        if 'user' not in session or 'username' not in session['user'] or 'email' not in session['user']:
+            return jsonify({"error": "User must be logged in."}), 401
+
+        current_user = session['user']['username']
+        current_user_email = session['user']['email']
+
+        data = request.get_json()
+        if not data or 'target_username' not in data:
+            return jsonify({"error": "target_username is required"}), 400
+
+        target_username = data['target_username']
+
+        # Fetch email of target user
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT email FROM users WHERE username = %s", (target_username,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+
+        if not result:
+            return jsonify({"error": "Target user not found"}), 404
+
+        target_email = result[0]
+
+        # Compose and send email
+        sender_email = "teamforge.smtp@gmail.com"
+        sender_password = "APOLLO_EMAIL&"
+
+        msg = EmailMessage()
+        msg['Subject'] = "Teamforge Connection Request"
+        msg['From'] = sender_email
+        msg['To'] = target_email
+        msg.set_content(f"Hey from Teamforge! {current_user} wants to connect with you!\n\nTheir email: {current_user_email}")
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+            smtp.login(sender_email, sender_password)
+            smtp.send_message(msg)
+
+        return jsonify({"message": "Email sent successfully"}), 200
+
+    except Exception as e:
+        logging.error(f"Error sending email: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
