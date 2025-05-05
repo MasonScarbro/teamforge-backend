@@ -498,7 +498,19 @@ def send_connection_email():
         msg['Subject'] = "Teamforge Connection Request"
         msg['From'] = sender_email
         msg['To'] = target_email
-        msg.set_content(f"Hey from Teamforge! {current_user} wants to connect with you!\n\nTheir email: {current_user_email}")
+        msg.set_content(
+            f"""Hey from Teamforge!
+
+{current_user} wants to connect with you!
+
+Their email: {current_user_email}
+
+Click 'Reply' to start chatting.
+
+Best,
+Teamforge Bot"""
+        )
+
 
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(sender_email, sender_password)
